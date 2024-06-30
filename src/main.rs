@@ -1,13 +1,43 @@
 use std::env;
 
-use axum::Router;
+use axum::{
+    extract::{ Path, State },
+    routing::get,
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+    Router,
+};
 use deadpool_postgres::{ Config, ManagerConfig, Runtime };
 use dotenv::dotenv;
-use models::app_state::AppState;
+use models::{ app_state::AppState, entities::Entites };
+use serde_json::json;
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;
+use utils::db_utils::get_client;
+use uuid::Uuid;
 
+mod utils;
 mod models;
+
+async fn get_entities(
+    State(state): State<AppState>,
+    Path((project_id, entity)): Path<(Uuid, Entites)>
+) -> impl IntoResponse {
+    let client = get_client(&state.pool).await.unwrap();
+
+    let rows = client.query(entity.list_string().as_str(), &[&project_id]).await;
+
+    if rows.is_err() {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"ok": true})));
+    }
+
+    let rows = rows.unwrap();
+
+    let data = entity.to_json_list(rows);
+
+    return (StatusCode::OK, data);
+}
 
 #[tokio::main]
 async fn main() {
@@ -24,18 +54,10 @@ async fn main() {
     let pool = cfg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
 
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await.unwrap();
-    let client = pool.get().await.unwrap();
 
-    let rows = client
-        .query("SELECT full_name FROM characters WHERE is_public = TRUE;", &[]).await
-        .unwrap();
-
-    for row in rows {
-        let full_name: String = row.get("full_name");
-        println!("{}", full_name);
-    }
-
-    let main_router = Router::new().with_state(AppState { pool });
+    let main_router = Router::new()
+        .route("/:project_id/:entity", get(get_entities))
+        .with_state(AppState { pool });
 
     println!("Listening on port {} 🚀", port);
     axum::serve(listener, main_router).await.unwrap();
