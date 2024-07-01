@@ -2,9 +2,9 @@ use std::env;
 
 use axum::{
     extract::{ Path, State },
-    routing::get,
-    http::StatusCode,
+    http::{ header::CONTENT_TYPE, HeaderValue, StatusCode },
     response::IntoResponse,
+    routing::get,
     Json,
     Router,
 };
@@ -14,6 +14,7 @@ use models::{ app_state::AppState, entities::Entites };
 use serde_json::json;
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;
+use tower_http::cors::{ AllowOrigin, Cors, CorsLayer };
 use utils::db_utils::get_client;
 use uuid::Uuid;
 
@@ -45,6 +46,10 @@ async fn main() {
 
     let database_url = env::var("DATABASE_URL").expect("NO DATABASE URL CONFIGURED");
     let port = env::var("PORT").expect("NO PORT CONFIGURED");
+    let client_url = env::var("CLIENT_URL").expect("NO CLIENT URL CONFIGURED");
+
+    let origins = AllowOrigin::list([HeaderValue::from_str(&client_url).unwrap()]);
+    let cors = CorsLayer::new().allow_origin(origins).allow_headers([CONTENT_TYPE]);
 
     let mut cfg = Config::new();
     cfg.manager = Some(ManagerConfig {
@@ -57,7 +62,8 @@ async fn main() {
 
     let main_router = Router::new()
         .route("/:project_id/:entity", get(get_entities))
-        .with_state(AppState { pool });
+        .with_state(AppState { pool })
+        .layer(cors);
 
     println!("Listening on port {} 🚀", port);
     axum::serve(listener, main_router).await.unwrap();
