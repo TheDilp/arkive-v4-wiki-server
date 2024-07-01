@@ -15,11 +15,25 @@ pub enum Entites {
     Dictionaries,
 }
 
+impl ToString for Entites {
+    fn to_string(&self) -> String {
+        String::from(match self {
+            Self::Characters => "characters",
+            Self::Blueprints => "blueprint_instances",
+            Self::Documents => "documents",
+            Self::Maps => "maps",
+            Self::Graphs => "graphs",
+            Self::Calendars => "calendars",
+            Self::Dictionaries => "dictionaries",
+        })
+    }
+}
+
 impl Entites {
-    fn select_string(&self) -> &str {
+    fn list_select_string(&self) -> &str {
         match self {
             Self::Characters =>
-                "SELECT id, portrait_id as image_id, full_name, is_public FROM characters ",
+                "SELECT characters.id, characters.full_name as title, characters.is_public, images.id as image_id FROM characters LEFT JOIN images ON images.id = characters.portrait_id AND images.is_public = TRUE ",
             Self::Blueprints =>
                 "SELECT blueprint_instances.id, blueprint_instances.title, blueprint_instances.is_public, blueprints.icon FROM blueprint_instances ",
             Self::Documents => "SELECT id, title, image_id, icon, is_public FROM documents",
@@ -29,19 +43,38 @@ impl Entites {
             Self::Dictionaries => "SELECT id, title, icon, is_public FROM dictionaries",
         }
     }
-    fn where_string(&self) -> &str {
+    fn list_where_string(&self) -> &str {
         match self {
             Self::Blueprints =>
                 "LEFT JOIN blueprints ON blueprints.id = blueprint_instances.parent_id WHERE blueprints.project_id = $1 AND blueprint_instances.is_public = TRUE",
-            _ => " WHERE project_id = $1 AND is_public = TRUE",
+            _ => " WHERE characters.project_id = $1 AND characters.is_public = TRUE",
         }
+    }
+    fn read_where_string(&self) -> String {
+        match self {
+            Self::Blueprints =>
+                "LEFT JOIN blueprints ON blueprints.id = blueprint_instances.parent_id WHERE blueprints.project_id = $1
+                AND blueprint_instances.id = $2 AND blueprint_instances.is_public = TRUE".to_string(),
+            _ => {
+                return format!(
+                    " WHERE {entity}.project_id = $1 AND {entity}.id = $2 AND {entity}.is_public = TRUE",
+                    entity = self.to_string().as_str()
+                );
+            }
+        }
+    }
+
+    fn order_by(&self) -> &str {
+        return "ORDER BY title;";
     }
     fn to_character(&self, row: &Row) -> PublicCharacter {
         return PublicCharacter {
             id: row.get("id"),
-            full_name: row.get("full_name"),
+            title: row.get("title"),
             image_id: row.get("image_id"),
             is_public: row.get("is_public"),
+            age: row.get("age"),
+            biography: row.get("biography"),
         };
     }
     fn to_blueprint(&self, row: &Row) -> PublicBlueprint {
@@ -95,8 +128,16 @@ impl Entites {
         };
     }
 
+    pub fn read_string(&self) -> String {
+        return format!("{} {};", self.list_select_string(), self.read_where_string());
+    }
     pub fn list_string(&self) -> String {
-        return format!("{} {};", self.select_string(), self.where_string());
+        return format!(
+            "{} {} {};",
+            self.list_select_string(),
+            self.list_where_string(),
+            self.order_by()
+        );
     }
 
     pub fn to_json_list(&self, rows: Vec<Row>) -> Json<Value> {
@@ -152,14 +193,48 @@ impl Entites {
             }
         };
     }
+    pub fn to_json_read(&self, row: Row) -> Json<Value> {
+        return match self {
+            Self::Characters => {
+                let data: PublicCharacter = self.to_character(&row);
+                Json(serde_json::to_value(data).unwrap())
+            }
+            Self::Blueprints => {
+                let data: PublicBlueprint = self.to_blueprint(&row);
+                Json(serde_json::to_value(data).unwrap())
+            }
+            Self::Documents => {
+                let data: PublicDocument = self.to_document(&row);
+                Json(serde_json::to_value(data).unwrap())
+            }
+            Self::Maps => {
+                let data: PublicMap = self.to_map(&row);
+                Json(serde_json::to_value(data).unwrap())
+            }
+            Self::Graphs => {
+                let data: PublicGraph = self.to_graph(&row);
+                Json(serde_json::to_value(data).unwrap())
+            }
+            Self::Calendars => {
+                let data: PublicCalendars = self.to_calendar(&row);
+                Json(serde_json::to_value(data).unwrap())
+            }
+            Self::Dictionaries => {
+                let data: PublicDictionaries = self.to_dictionary(&row);
+                Json(serde_json::to_value(data).unwrap())
+            }
+        };
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct PublicCharacter {
     pub id: Uuid,
-    pub full_name: String,
+    pub title: String,
     pub image_id: Option<Uuid>,
     pub is_public: Option<bool>,
+    pub age: Option<i32>,
+    pub biography: Option<Value>,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -14,12 +14,31 @@ use models::{ app_state::AppState, entities::Entites };
 use serde_json::json;
 use tokio::net::TcpListener;
 use tokio_postgres::NoTls;
-use tower_http::cors::{ AllowOrigin, Cors, CorsLayer };
+use tower_http::cors::{ AllowOrigin, CorsLayer };
+use tracing::error;
 use utils::db_utils::get_client;
 use uuid::Uuid;
 
 mod utils;
 mod models;
+
+async fn get_entity(
+    State(state): State<AppState>,
+    Path((project_id, entity, id)): Path<(Uuid, Entites, Uuid)>
+) -> impl IntoResponse {
+    let client = get_client(&state.pool).await.unwrap();
+
+    let row = client.query_one(entity.read_string().as_str(), &[&project_id, &id]).await;
+
+    if row.is_err() {
+        error!("{}", row.err().unwrap());
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"ok": false})));
+    }
+
+    let row = row.unwrap();
+
+    return (StatusCode::OK, entity.to_json_read(row));
+}
 
 async fn get_entities(
     State(state): State<AppState>,
@@ -30,18 +49,18 @@ async fn get_entities(
     let rows = client.query(entity.list_string().as_str(), &[&project_id]).await;
 
     if rows.is_err() {
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"ok": true})));
+        error!("{}", rows.err().unwrap());
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"ok": false})));
     }
 
     let rows = rows.unwrap();
 
-    let data = entity.to_json_list(rows);
-
-    return (StatusCode::OK, data);
+    return (StatusCode::OK, entity.to_json_list(rows));
 }
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("NO DATABASE URL CONFIGURED");
@@ -62,6 +81,7 @@ async fn main() {
 
     let main_router = Router::new()
         .route("/:project_id/:entity", get(get_entities))
+        .route("/:project_id/:entity/:id", get(get_entity))
         .with_state(AppState { pool })
         .layer(cors);
 
