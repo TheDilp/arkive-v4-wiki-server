@@ -7,30 +7,39 @@ import uniq from "lodash.uniq";
 import uniqBy from "lodash.uniqby";
 
 import { MessageEnum } from "../../enums";
-import { PermissionDecorationType, ResponseWithDataSchema } from "../../types/requestTypes";
-import { GetRelatedEntityPermissionsAndRoles, TagQuery } from "../../utils/relationalQueryHelpers";
+import { ResponseWithDataSchema } from "../../types/requestTypes";
+import { TagQuery } from "../../utils/relationalQueryHelpers";
 import { groupCharacterFields } from "../../utils/utils";
 import { db } from "../db";
 import { ReadCharacterSchema } from "../validation";
-import { checkEntityLevelPermission, getNestedReadPermission } from ".";
 
 type bodyTp = (typeof ReadCharacterSchema)["static"];
 
 export async function readCharacter(
   body: bodyTp,
   params: { id: string },
-  permissions: PermissionDecorationType,
-  isPublic: boolean,
+  permissions: Record<string, string>,
+  isPublic: boolean = true
 ): Promise<(typeof ResponseWithDataSchema)["static"]> {
   let query = db
     .selectFrom("characters")
-    .select(body.fields.map((f) => `characters.${f}`) as SelectExpression<DB, "characters">[])
+    .select(
+      body.fields.map((f) => `characters.${f}`) as SelectExpression<
+        DB,
+        "characters"
+      >[]
+    )
     .where("characters.id", "=", params.id)
     .$if(!!body.relations, (qb) => {
       if (body?.relations?.is_favorite) {
         qb = qb
           .leftJoin("favorite_characters", (join) =>
-            join.on((jb) => jb.and([jb("character_id", "=", params.id), jb("user_id", "=", permissions?.user_id)])),
+            join.on((jb) =>
+              jb.and([
+                jb("character_id", "=", params.id),
+                jb("user_id", "=", permissions?.user_id),
+              ])
+            )
           )
           .select(["is_favorite"]);
       }
@@ -47,26 +56,19 @@ export async function readCharacter(
                   jsonArrayFrom(
                     ebb
                       .selectFrom("characters")
-                      .whereRef("characters.id", "=", "character_characters_fields.related_id")
-                      .select(["characters.id", "characters.full_name", "characters.portrait_id"])
-                      .$if(isPublic, (eb) => {
-                        eb = eb.where("characters.is_public", "=", true);
-                        return eb;
-                      })
-                      .$if(!permissions?.is_project_owner && !isPublic, (qb) => {
-                        return checkEntityLevelPermission(qb, permissions, "characters", params.id);
-                      }),
+                      .whereRef(
+                        "characters.id",
+                        "=",
+                        "character_characters_fields.related_id"
+                      )
+                      .where("characters.is_public", "=", true)
+                      .select([
+                        "characters.id",
+                        "characters.full_name",
+                        "characters.portrait_id",
+                      ])
                   ).as("characters"),
               ]);
-
-            characters_query = getNestedReadPermission(
-              characters_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_characters_fields.related_id",
-              "read_characters",
-              isPublic,
-            );
 
             return jsonArrayFrom(characters_query).as("field_characters");
           },
@@ -81,26 +83,19 @@ export async function readCharacter(
                   jsonArrayFrom(
                     ebb
                       .selectFrom("documents")
-                      .whereRef("documents.id", "=", "character_documents_fields.related_id")
-                      .select(["documents.id", "documents.title", "documents.icon"])
-                      .$if(isPublic, (eb) => {
-                        eb = eb.where("documents.is_public", "=", true);
-                        return eb;
-                      })
-                      .$if(!permissions?.is_project_owner && !isPublic, (qb) => {
-                        return checkEntityLevelPermission(qb, permissions, "documents", params.id);
-                      }),
+                      .whereRef(
+                        "documents.id",
+                        "=",
+                        "character_documents_fields.related_id"
+                      )
+                      .where("documents.is_public", "=", true)
+                      .select([
+                        "documents.id",
+                        "documents.title",
+                        "documents.icon",
+                      ])
                   ).as("documents"),
               ]);
-
-            documents_query = getNestedReadPermission(
-              documents_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_documents_fields.related_id",
-              "read_documents",
-              isPublic,
-            );
 
             return jsonArrayFrom(documents_query).as("field_documents");
           },
@@ -108,6 +103,7 @@ export async function readCharacter(
             let image_query = eb
               .selectFrom("character_images_fields")
               .where("character_images_fields.character_id", "=", params.id)
+              .where("is_public", "=", true)
               .select([
                 "character_field_id as id",
                 "character_images_fields.related_id",
@@ -115,23 +111,14 @@ export async function readCharacter(
                   jsonArrayFrom(
                     ebb
                       .selectFrom("images")
-                      .whereRef("images.id", "=", "character_images_fields.related_id")
+                      .whereRef(
+                        "images.id",
+                        "=",
+                        "character_images_fields.related_id"
+                      )
                       .select(["id", "title"])
-                      .$if(isPublic, (eb) => {
-                        eb = eb.where("is_public", "=", true);
-                        return eb;
-                      }),
                   ).as("images"),
               ]);
-
-            image_query = getNestedReadPermission(
-              image_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_images_fields.related_id",
-              "read_assets",
-              isPublic,
-            );
 
             return jsonArrayFrom(image_query).as("field_images");
           },
@@ -139,6 +126,7 @@ export async function readCharacter(
             let event_query = eb
               .selectFrom("character_events_fields")
               .where("character_events_fields.character_id", "=", params.id)
+              .where("is_public", "=", true)
               .select([
                 "character_field_id as id",
                 "character_events_fields.related_id",
@@ -146,23 +134,14 @@ export async function readCharacter(
                   jsonArrayFrom(
                     ebb
                       .selectFrom("events")
-                      .whereRef("events.id", "=", "character_events_fields.related_id")
+                      .whereRef(
+                        "events.id",
+                        "=",
+                        "character_events_fields.related_id"
+                      )
                       .select(["id", "title", "parent_id"])
-                      .$if(isPublic, (eb) => {
-                        eb = eb.where("is_public", "=", true);
-                        return eb;
-                      }),
                   ).as("events"),
               ]);
-
-            event_query = getNestedReadPermission(
-              event_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_events_fields.related_id",
-              "read_events",
-              isPublic,
-            );
 
             return jsonArrayFrom(event_query).as("field_events");
           },
@@ -170,6 +149,7 @@ export async function readCharacter(
             let map_pin_query = eb
               .selectFrom("character_locations_fields")
               .where("character_locations_fields.character_id", "=", params.id)
+              .where("is_public", "=", true)
               .select([
                 "character_field_id as id",
                 "character_locations_fields.related_id",
@@ -177,30 +157,26 @@ export async function readCharacter(
                   jsonArrayFrom(
                     ebb
                       .selectFrom("map_pins")
-                      .whereRef("map_pins.id", "=", "character_locations_fields.related_id")
+                      .whereRef(
+                        "map_pins.id",
+                        "=",
+                        "character_locations_fields.related_id"
+                      )
                       .select(["id", "title", "icon", "parent_id"])
-                      .$if(isPublic, (eb) => {
-                        eb = eb.where("is_public", "=", true);
-                        return eb;
-                      }),
                   ).as("map_pins"),
               ]);
-
-            map_pin_query = getNestedReadPermission(
-              map_pin_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_locations_fields.related_id",
-              "read_map_pins",
-              isPublic,
-            );
 
             return jsonArrayFrom(map_pin_query).as("field_locations");
           },
           (eb) => {
             let bpi_query = eb
               .selectFrom("character_blueprint_instance_fields")
-              .where("character_blueprint_instance_fields.character_id", "=", params.id)
+              .where(
+                "character_blueprint_instance_fields.character_id",
+                "=",
+                params.id
+              )
+              .where("is_public", "=", true)
               .select([
                 "character_field_id as id",
                 "character_blueprint_instance_fields.related_id",
@@ -208,46 +184,41 @@ export async function readCharacter(
                   jsonArrayFrom(
                     ebb
                       .selectFrom("blueprint_instances")
-                      .whereRef("blueprint_instances.id", "=", "character_blueprint_instance_fields.related_id")
-                      .leftJoin("blueprints", "blueprints.id", "blueprint_instances.parent_id")
+                      .whereRef(
+                        "blueprint_instances.id",
+                        "=",
+                        "character_blueprint_instance_fields.related_id"
+                      )
+                      .leftJoin(
+                        "blueprints",
+                        "blueprints.id",
+                        "blueprint_instances.parent_id"
+                      )
                       .select([
                         "blueprint_instances.id",
                         "blueprint_instances.title",
                         "blueprint_instances.parent_id",
                         "blueprints.icon",
                       ])
-                      .$if(isPublic, (eb) => {
-                        eb = eb.where("is_public", "=", true);
-                        return eb;
-                      }),
                   ).as("blueprint_instances"),
               ]);
-
-            bpi_query = getNestedReadPermission(
-              bpi_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_blueprint_instance_fields.related_id",
-              "read_blueprint_instances",
-              isPublic,
-            );
 
             return jsonArrayFrom(bpi_query).as("field_blueprint_instances");
           },
           (ebb) => {
             let random_table_query = ebb
               .selectFrom("character_random_table_fields")
-              .where("character_random_table_fields.character_id", "=", params.id)
-              .select(["character_field_id as id", "character_random_table_fields.related_id", "option_id", "suboption_id"]);
-
-            random_table_query = getNestedReadPermission(
-              random_table_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_random_table_fields.related_id",
-              "read_random_tables",
-              isPublic,
-            );
+              .where(
+                "character_random_table_fields.character_id",
+                "=",
+                params.id
+              )
+              .select([
+                "character_field_id as id",
+                "character_random_table_fields.related_id",
+                "option_id",
+                "suboption_id",
+              ]);
 
             return jsonArrayFrom(random_table_query).as("field_random_tables");
           },
@@ -266,23 +237,18 @@ export async function readCharacter(
                 "end_year",
               ]);
 
-            calendar_query = getNestedReadPermission(
-              calendar_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "character_calendar_fields.related_id",
-              "read_calendars",
-              isPublic,
-            );
-
             return jsonArrayFrom(calendar_query).as("field_calendars");
           },
           (eb) =>
             jsonArrayFrom(
               eb
                 .selectFrom("character_value_fields")
-                .whereRef("character_value_fields.character_id", "=", "characters.id")
-                .select(["character_field_id as id", "value"]),
+                .whereRef(
+                  "character_value_fields.character_id",
+                  "=",
+                  "characters.id"
+                )
+                .select(["character_field_id as id", "value"])
             ).as("field_values"),
         ]);
       }
@@ -293,13 +259,18 @@ export async function readCharacter(
               .selectFrom("characters_relationships")
               .select(["character_a_id as id"])
               .where("character_a_id", "=", params.id)
+              .where("characters.is_public", "=", true)
               .leftJoin("characters", "characters.id", "character_b_id")
               .leftJoin(
                 "character_relationship_types",
                 "character_relationship_types.id",
-                "characters_relationships.relation_type_id",
+                "characters_relationships.relation_type_id"
               )
-              .where("character_relationship_types.ascendant_title", "is not", null)
+              .where(
+                "character_relationship_types.ascendant_title",
+                "is not",
+                null
+              )
               .select([
                 "character_b_id as id",
                 "characters.full_name",
@@ -313,25 +284,10 @@ export async function readCharacter(
                     .whereRef("images.id", "=", "characters.portrait_id")
                     .select(["images.id", "images.title"]);
 
-                  if (!permissions.is_project_owner)
-                    // @ts-ignore
-                    portrait_query = getNestedReadPermission(
-                      portrait_query,
-                      permissions?.is_project_owner,
-                      permissions?.user_id,
-                      "characters.portrait_id",
-                      "read_assets",
-                      isPublic,
-                    );
-
                   return jsonObjectFrom(portrait_query).as("portrait");
                 },
               ])
-              .$if(isPublic, (eb) => eb.where("characters.is_public", "=", true))
-              .$if(!permissions?.is_project_owner && !isPublic, (qb) => {
-                return checkEntityLevelPermission(qb, permissions, "characters", params.id);
-              }),
-          ).as("related_to"),
+          ).as("related_to")
         );
         qb = qb.select((eb) =>
           jsonArrayFrom(
@@ -339,17 +295,18 @@ export async function readCharacter(
               .selectFrom("characters_relationships")
               .select(["character_b_id as id"])
               .where("character_b_id", "=", params.id)
+              .where("characters.is_public", "=", true)
               .leftJoin("characters", "characters.id", "character_a_id")
               .leftJoin(
                 "character_relationship_types",
                 "character_relationship_types.id",
-                "characters_relationships.relation_type_id",
+                "characters_relationships.relation_type_id"
               )
-              .where("character_relationship_types.ascendant_title", "is not", null)
-              .$if(isPublic, (eb) => eb.where("characters.is_public", "=", true))
-              .$if(!permissions?.is_project_owner && !isPublic, (qb) => {
-                return checkEntityLevelPermission(qb, permissions, "characters", params.id);
-              })
+              .where(
+                "character_relationship_types.ascendant_title",
+                "is not",
+                null
+              )
               .select([
                 "character_a_id as id",
                 "characters.full_name",
@@ -362,21 +319,10 @@ export async function readCharacter(
                     .whereRef("images.id", "=", "characters.portrait_id")
                     .select(["images.id", "images.title"]);
 
-                  if (!permissions.is_project_owner)
-                    // @ts-ignore
-                    portrait_query = getNestedReadPermission(
-                      portrait_query,
-                      permissions?.is_project_owner,
-                      permissions?.user_id,
-                      "characters.portrait_id",
-                      "read_assets",
-                      isPublic,
-                    );
-
                   return jsonObjectFrom(portrait_query).as("portrait");
                 },
-              ]),
-          ).as("related_from"),
+              ])
+          ).as("related_from")
         );
 
         qb = qb.select((eb) =>
@@ -386,15 +332,18 @@ export async function readCharacter(
               .leftJoin(
                 "character_relationship_types",
                 "character_relationship_types.id",
-                "characters_relationships.relation_type_id",
+                "characters_relationships.relation_type_id"
               )
               .where("characters_relationships.character_a_id", "=", params.id)
-              .where("character_relationship_types.descendant_title", "is", null)
-              .$if(isPublic, (eb) => eb.where("characters.is_public", "=", true))
+              .where(
+                "character_relationship_types.descendant_title",
+                "is",
+                null
+              )
+              .where("characters.is_public", "=", true)
+
               .leftJoin("characters", "characters.id", "character_b_id")
-              .$if(!permissions?.is_project_owner && !isPublic, (qb) => {
-                return checkEntityLevelPermission(qb, permissions, "characters", params.id);
-              })
+
               .select([
                 "character_b_id as id",
                 "characters.full_name",
@@ -408,21 +357,10 @@ export async function readCharacter(
                     .whereRef("images.id", "=", "characters.portrait_id")
                     .select(["images.id", "images.title"]);
 
-                  if (!permissions.is_project_owner)
-                    // @ts-ignore
-                    portrait_query = getNestedReadPermission(
-                      portrait_query,
-                      permissions?.is_project_owner,
-                      permissions?.user_id,
-                      "characters.portrait_id",
-                      "read_assets",
-                      isPublic,
-                    );
-
                   return jsonObjectFrom(portrait_query).as("portrait");
                 },
-              ]),
-          ).as("related_other_a"),
+              ])
+          ).as("related_other_a")
         );
         qb = qb.select((eb) =>
           jsonArrayFrom(
@@ -431,15 +369,18 @@ export async function readCharacter(
               .leftJoin(
                 "character_relationship_types",
                 "character_relationship_types.id",
-                "characters_relationships.relation_type_id",
+                "characters_relationships.relation_type_id"
               )
               .where("characters_relationships.character_b_id", "=", params.id)
-              .where("character_relationship_types.descendant_title", "is", null)
-              .$if(isPublic, (eb) => eb.where("characters.is_public", "=", true))
+              .where(
+                "character_relationship_types.descendant_title",
+                "is",
+                null
+              )
+              .where("characters.is_public", "=", true)
+
               .leftJoin("characters", "characters.id", "character_a_id")
-              .$if(!permissions?.is_project_owner && !isPublic, (qb) => {
-                return checkEntityLevelPermission(qb, permissions, "characters", params.id);
-              })
+
               .select([
                 "character_a_id as id",
                 "characters.full_name",
@@ -453,21 +394,10 @@ export async function readCharacter(
                     .whereRef("images.id", "=", "characters.portrait_id")
                     .select(["images.id", "images.title"]);
 
-                  if (!permissions.is_project_owner)
-                    // @ts-ignore
-                    portrait_query = getNestedReadPermission(
-                      portrait_query,
-                      permissions?.is_project_owner,
-                      permissions?.user_id,
-                      "characters.portrait_id",
-                      "read_assets",
-                      isPublic,
-                    );
-
                   return jsonObjectFrom(portrait_query).as("portrait");
                 },
-              ]),
-          ).as("related_other_b"),
+              ])
+          ).as("related_other_b")
         );
       }
       if (body?.relations?.character_relationship_types) {
@@ -476,16 +406,21 @@ export async function readCharacter(
             eb
               .selectFrom("characters_relationships")
               .distinctOn("relation_type_id")
-              .where((wb) => wb.or([wb("character_a_id", "=", params.id), wb("character_b_id", "=", params.id)]))
+              .where((wb) =>
+                wb.or([
+                  wb("character_a_id", "=", params.id),
+                  wb("character_b_id", "=", params.id),
+                ])
+              )
               .leftJoin(
                 "character_relationship_types as related_to",
                 "related_to.id",
-                "characters_relationships.relation_type_id",
+                "characters_relationships.relation_type_id"
               )
               .leftJoin(
                 "character_relationship_types as related_from",
                 "related_from.id",
-                "characters_relationships.relation_type_id",
+                "characters_relationships.relation_type_id"
               )
               .select([
                 "characters_relationships.relation_type_id as id",
@@ -493,14 +428,12 @@ export async function readCharacter(
                 "related_to.title as related_to_title",
                 "related_from.ascendant_title as related_from_ascendant_title",
                 "related_to.ascendant_title as related_to_ascendant_title",
-              ]),
-          ).as("character_relationship_types"),
+              ])
+          ).as("character_relationship_types")
         );
       }
       if (body?.relations?.tags) {
-        qb = qb.select((eb) =>
-          TagQuery(eb, "_charactersTotags", "characters", permissions?.is_project_owner, permissions?.user_id),
-        );
+        qb = qb.select((eb) => TagQuery(eb, "_charactersTotags", "characters"));
       }
       if (body?.relations?.portrait) {
         qb = qb.select((eb) => {
@@ -508,16 +441,6 @@ export async function readCharacter(
             .selectFrom("images")
             .whereRef("images.id", "=", "characters.portrait_id")
             .select(["images.id", "images.title"]);
-
-          if (!permissions.is_project_owner)
-            portrait_query = getNestedReadPermission(
-              portrait_query,
-              permissions?.is_project_owner,
-              permissions?.user_id,
-              "characters.portrait_id",
-              "read_assets",
-              isPublic,
-            );
 
           return jsonObjectFrom(portrait_query).as("portrait");
         });
@@ -529,21 +452,8 @@ export async function readCharacter(
             .where("_charactersToimages.A", "=", params.id)
             .leftJoin("images", "images.id", "_charactersToimages.B")
             .select(["images.id", "images.title", "images.is_public"])
-            .orderBy("title")
-            .$if(isPublic, (eb) => {
-              eb = eb.where("images.is_public", "=", true);
-              return eb;
-            });
-
-          // @ts-ignore
-          image_query = getNestedReadPermission(
-            image_query,
-            permissions?.is_project_owner,
-            permissions?.user_id,
-            "images.id",
-            "read_assets",
-            isPublic,
-          );
+            .where("images.is_public", "=", true)
+            .orderBy("title");
 
           return jsonArrayFrom(image_query).as("images");
         });
@@ -554,23 +464,9 @@ export async function readCharacter(
             .selectFrom("map_pins")
             .select(["map_pins.id as map_pin_id"])
             .whereRef("map_pins.character_id", "=", "characters.id")
-            .$if(isPublic, (eb) => {
-              eb = eb.where("map_pins.is_public", "=", true);
-
-              return eb;
-            })
+            .where("map_pins.is_public", "=", true)
             .leftJoin("maps", "maps.id", "map_pins.parent_id")
             .select(["maps.id", "maps.title", "maps.image_id"]);
-
-          // @ts-ignore
-          map_pin_query = getNestedReadPermission(
-            map_pin_query,
-            permissions?.is_project_owner,
-            permissions?.user_id,
-            "map_pins.id",
-            "read_map_pins",
-            isPublic,
-          );
 
           return jsonArrayFrom(map_pin_query).as("locations");
         });
@@ -583,25 +479,15 @@ export async function readCharacter(
             .leftJoin("documents", "_charactersTodocuments.B", "documents.id")
             .where("documents.is_folder", "is not", true)
             .where("documents.is_template", "is not", true)
-            .$if(!permissions?.is_project_owner && !isPublic, (qb) => {
-              return checkEntityLevelPermission(qb, permissions, "documents", params.id);
-            })
-            .$if(isPublic, (eb) => {
-              eb = eb.where("documents.is_public", "=", true);
-              return eb;
-            })
-            .select(["documents.id", "documents.icon", "documents.is_public", "documents.title", "documents.image_id"])
+            .where("documents.is_public", "=", true)
+            .select([
+              "documents.id",
+              "documents.icon",
+              "documents.is_public",
+              "documents.title",
+              "documents.image_id",
+            ])
             .orderBy("title");
-
-          // @ts-ignore
-          document_query = getNestedReadPermission(
-            document_query,
-            permissions?.is_project_owner,
-            permissions?.user_id,
-            "documents.id",
-            "read_documents",
-            isPublic,
-          );
 
           return jsonArrayFrom(document_query).as("documents");
         });
@@ -612,22 +498,15 @@ export async function readCharacter(
             .selectFrom("event_characters")
             .where("event_characters.related_id", "=", params.id)
             .leftJoin("events", "events.id", "event_characters.event_id")
-            .$if(isPublic, (eb) => {
-              eb = eb.where("events.is_public", "=", true);
-              return eb;
-            })
-            .select(["events.id", "events.is_public", "events.title", "events.image_id", "events.parent_id"])
+            .where("events.is_public", "=", true)
+            .select([
+              "events.id",
+              "events.is_public",
+              "events.title",
+              "events.image_id",
+              "events.parent_id",
+            ])
             .orderBy("start_year");
-
-          // @ts-ignore
-          event_query = getNestedReadPermission(
-            event_query,
-            permissions?.is_project_owner,
-            permissions?.user_id,
-            "events.id",
-            "read_events",
-            isPublic,
-          );
 
           return jsonArrayFrom(event_query).as("events");
         });
@@ -636,21 +515,13 @@ export async function readCharacter(
       return qb;
     });
 
-  if (!isPublic) {
-    if (permissions?.is_project_owner) {
-      query = query.leftJoin("entity_permissions", (join) => join.on("entity_permissions.related_id", "=", params.id));
-    } else {
-      query = checkEntityLevelPermission(query, permissions, "characters", params.id);
-    }
-    if (!!body.permissions && !isPublic) {
-      query = GetRelatedEntityPermissionsAndRoles(query, permissions, "characters", params.id);
-    }
-  }
-
   let data = await query.executeTakeFirstOrThrow();
   // If fetching direct relationships return only unique relationships
   if (data?.related_other_a || data?.related_other_b) {
-    data.related_other = uniqBy((data.related_other_a || []).concat(data.related_other_b || []), "id");
+    data.related_other = uniqBy(
+      (data.related_other_a || []).concat(data.related_other_b || []),
+      "id"
+    );
     // @ts-ignore
     data = omit(data, ["related_other_a", "related_other_b"]);
   }
@@ -671,33 +542,53 @@ export async function readCharacter(
       (d: {
         id: string;
         related_id: string;
-        characters: { character: { id: string; full_name: string; portrait_id: string | null } }[];
+        characters: {
+          character: {
+            id: string;
+            full_name: string;
+            portrait_id: string | null;
+          };
+        }[];
       }) => ({
         id: d.id,
-        characters: (d?.characters || []).map((character) => ({ related_id: d.related_id, character })),
-      }),
+        characters: (d?.characters || []).map((character) => ({
+          related_id: d.related_id,
+          character,
+        })),
+      })
     ),
     ...(field_documents || [])
       .map(
         (d: {
           id: string;
           related_id: string;
-          documents: { document: { id: string; title: string; icon: string | null } }[];
+          documents: {
+            document: { id: string; title: string; icon: string | null };
+          }[];
         }) => ({
           id: d.id,
-          documents: (d?.documents || []).map((document) => ({ related_id: d.related_id, document })),
-        }),
+          documents: (d?.documents || []).map((document) => ({
+            related_id: d.related_id,
+            document,
+          })),
+        })
       )
       .filter((item: { documents: any[] }) => item.documents.length),
     ...(field_images || [])
       .map(
-        (d: { id: string; related_id: string; images: { image: { id: string; title: string; icon: string | null } }[] }) => ({
+        (d: {
+          id: string;
+          related_id: string;
+          images: {
+            image: { id: string; title: string; icon: string | null };
+          }[];
+        }) => ({
           id: d.id,
           images: d.images.map((image) => ({
             related_id: d.related_id,
             image,
           })),
-        }),
+        })
       )
       .filter((item: { images: any[] }) => item.images.length),
 
@@ -706,25 +597,33 @@ export async function readCharacter(
         (d: {
           id: string;
           related_id: string;
-          map_pins: { map_pin: { id: string; title: string; icon: string | null } }[];
+          map_pins: {
+            map_pin: { id: string; title: string; icon: string | null };
+          }[];
         }) => ({
           id: d.id,
           map_pins: d.map_pins.map((map_pin) => ({
             related_id: d.related_id,
             map_pin,
           })),
-        }),
+        })
       )
       .filter((item: { map_pins: any[] }) => item.map_pins.length),
 
     ...(field_events || [])
-      .map((d: { id: string; related_id: string; events: { event: { id: string; title: string; parent_id: string } }[] }) => ({
-        id: d.id,
-        events: d.events.map((event) => ({
-          related_id: d.related_id,
-          event,
-        })),
-      }))
+      .map(
+        (d: {
+          id: string;
+          related_id: string;
+          events: { event: { id: string; title: string; parent_id: string } }[];
+        }) => ({
+          id: d.id,
+          events: d.events.map((event) => ({
+            related_id: d.related_id,
+            event,
+          })),
+        })
+      )
       .filter((item: { events: any[] }) => item.events.length),
 
     ...(field_blueprint_instances || [])
@@ -732,16 +631,27 @@ export async function readCharacter(
         (d: {
           id: string;
           related_id: string;
-          blueprint_instances: { blueprint_instance: { id: string; title: string; icon: string | null } }[];
+          blueprint_instances: {
+            blueprint_instance: {
+              id: string;
+              title: string;
+              icon: string | null;
+            };
+          }[];
         }) => ({
           id: d.id,
-          blueprint_instances: d.blueprint_instances.map((blueprint_instance) => ({
-            related_id: d.related_id,
-            blueprint_instance,
-          })),
-        }),
+          blueprint_instances: d.blueprint_instances.map(
+            (blueprint_instance) => ({
+              related_id: d.related_id,
+              blueprint_instance,
+            })
+          ),
+        })
       )
-      .filter((item: { blueprint_instances: any[] }) => item.blueprint_instances.length),
+      .filter(
+        (item: { blueprint_instances: any[] }) =>
+          item.blueprint_instances.length
+      ),
     ...(field_calendars || []).map(
       (d: {
         id: string;
@@ -763,16 +673,23 @@ export async function readCharacter(
           end_month_id: d.end_month_id,
           end_year: d.end_year,
         },
-      }),
+      })
     ),
-    ...(field_random_tables || []).map((d: { id: string; related_id: string; option_id?: string; suboption_id?: string }) => ({
-      id: d.id,
-      random_table: {
-        related_id: d.related_id,
-        option_id: d.option_id,
-        suboption_id: d.suboption_id,
-      },
-    })),
+    ...(field_random_tables || []).map(
+      (d: {
+        id: string;
+        related_id: string;
+        option_id?: string;
+        suboption_id?: string;
+      }) => ({
+        id: d.id,
+        random_table: {
+          related_id: d.related_id,
+          option_id: d.option_id,
+          suboption_id: d.suboption_id,
+        },
+      })
+    ),
   ]);
   rest.character_fields.push(...(field_values || []));
   if (isPublic) {
@@ -792,13 +709,18 @@ export async function readCharacter(
       role_access: true,
     };
   }
-  return { data: rest, message: MessageEnum.success, ok: true, role_access: true };
+  return {
+    data: rest,
+    message: MessageEnum.success,
+    ok: true,
+    role_access: true,
+  };
 }
 
 export async function getCharacterFamily(
   params: { id: string; relation_type_id: string; count: string },
-  permissions: PermissionDecorationType,
-  isPublic?: boolean,
+  permissions: Record<string, string>,
+  isPublic?: boolean
 ) {
   const { id, relation_type_id, count } = params;
 
@@ -813,7 +735,8 @@ export async function getCharacterFamily(
     ])
     .executeTakeFirstOrThrow();
 
-  const isDirect = !relationType.ascendant_title && !relationType.descendant_title;
+  const isDirect =
+    !relationType.ascendant_title && !relationType.descendant_title;
   const targetArrow = isDirect ? "none" : "triangle";
   const curveStyle = isDirect ? "straight" : "taxi";
 
@@ -821,8 +744,16 @@ export async function getCharacterFamily(
   if (isDirect) {
     let a_query = db
       .selectFrom("characters_relationships")
-      .leftJoin("characters", "characters.id", "characters_relationships.character_b_id")
-      .leftJoin("entity_permissions", "entity_permissions.related_id", "character_a_id")
+      .leftJoin(
+        "characters",
+        "characters.id",
+        "characters_relationships.character_b_id"
+      )
+      .leftJoin(
+        "entity_permissions",
+        "entity_permissions.related_id",
+        "character_a_id"
+      )
       .select([
         "characters.id",
         "characters.full_name",
@@ -838,12 +769,20 @@ export async function getCharacterFamily(
             wb("characters.owner_id", "=", permissions?.user_id),
             wb.and([
               wb("entity_permissions.user_id", "=", permissions?.user_id),
-              wb("entity_permissions.permission_id", "=", permissions?.permission_id),
-              wb("entity_permissions.related_id", "=", wb.ref("character_b_id")),
+              wb(
+                "entity_permissions.permission_id",
+                "=",
+                permissions?.permission_id
+              ),
+              wb(
+                "entity_permissions.related_id",
+                "=",
+                wb.ref("character_b_id")
+              ),
             ]),
             wb("entity_permissions.role_id", "=", permissions?.role_id),
           ]),
-        ]),
+        ])
       )
       .$if(!!isPublic, (qb) => {
         if (isPublic) qb = qb.where("characters.is_public", "=", isPublic);
@@ -852,9 +791,23 @@ export async function getCharacterFamily(
       });
     let b_query = db
       .selectFrom("characters_relationships")
-      .leftJoin("characters", "characters.id", "characters_relationships.character_a_id")
-      .leftJoin("entity_permissions", "entity_permissions.related_id", "character_b_id")
-      .select(["characters.id", "characters.full_name", "portrait_id", "project_id", "characters.is_public"])
+      .leftJoin(
+        "characters",
+        "characters.id",
+        "characters_relationships.character_a_id"
+      )
+      .leftJoin(
+        "entity_permissions",
+        "entity_permissions.related_id",
+        "character_b_id"
+      )
+      .select([
+        "characters.id",
+        "characters.full_name",
+        "portrait_id",
+        "project_id",
+        "characters.is_public",
+      ])
       .where((wb) =>
         wb.and([
           wb("character_b_id", "=", id),
@@ -863,12 +816,20 @@ export async function getCharacterFamily(
             wb("characters.owner_id", "=", permissions?.permission_id),
             wb.and([
               wb("entity_permissions.user_id", "=", permissions?.user_id),
-              wb("entity_permissions.permission_id", "=", permissions?.permission_id),
-              wb("entity_permissions.related_id", "=", wb.ref("character_a_id")),
+              wb(
+                "entity_permissions.permission_id",
+                "=",
+                permissions?.permission_id
+              ),
+              wb(
+                "entity_permissions.related_id",
+                "=",
+                wb.ref("character_a_id")
+              ),
             ]),
             wb("entity_permissions.role_id", "=", permissions?.role_id),
           ]),
-        ]),
+        ])
       )
       .$if(!!isPublic, (qb) => {
         if (isPublic) qb = qb.where("characters.is_public", "=", isPublic);
@@ -884,16 +845,13 @@ export async function getCharacterFamily(
 
         return qb;
       })
-      .select(["characters.id", "characters.full_name", "portrait_id", "project_id", "characters.is_public"]);
-
-    char_query = getNestedReadPermission(
-      char_query,
-      permissions?.is_project_owner,
-      permissions?.user_id,
-      "characters.id",
-      "read_characters",
-      isPublic,
-    );
+      .select([
+        "characters.id",
+        "characters.full_name",
+        "portrait_id",
+        "project_id",
+        "characters.is_public",
+      ]);
 
     const targets = await a_query.union(b_query).union(char_query).execute();
 
@@ -919,7 +877,12 @@ export async function getCharacterFamily(
           taxi_direction: "downward",
         };
       });
-    return { data: { edges, nodes }, ok: true, message: MessageEnum.success, role_access: true };
+    return {
+      data: { edges, nodes },
+      ok: true,
+      message: MessageEnum.success,
+      role_access: true,
+    };
   }
 
   const baseCharacterRelationships = await sql<{
@@ -956,14 +919,33 @@ SELECT
 FROM
   related_characters;
   `.execute(db);
-  const ids = uniq(baseCharacterRelationships.rows.flatMap((r) => [r.character_a_id, r.character_b_id]));
+  const ids = uniq(
+    baseCharacterRelationships.rows.flatMap((r) => [
+      r.character_a_id,
+      r.character_b_id,
+    ])
+  );
   if (ids.length === 0) {
-    return { data: { nodes: [], edges: [] }, ok: true, message: MessageEnum.success, role_access: true };
+    return {
+      data: { nodes: [], edges: [] },
+      ok: true,
+      message: MessageEnum.success,
+      role_access: true,
+    };
   }
   const mainCharacters = await db
     .selectFrom("characters")
-    .select(["characters.id", "characters.portrait_id", "characters.full_name", "characters.is_public"])
-    .leftJoin("entity_permissions", "entity_permissions.related_id", "characters.id")
+    .select([
+      "characters.id",
+      "characters.portrait_id",
+      "characters.full_name",
+      "characters.is_public",
+    ])
+    .leftJoin(
+      "entity_permissions",
+      "entity_permissions.related_id",
+      "characters.id"
+    )
     .where((wb) =>
       wb.and([
         wb("characters.id", "in", ids),
@@ -971,12 +953,16 @@ FROM
           wb("characters.owner_id", "=", permissions?.user_id),
           wb.and([
             wb("entity_permissions.user_id", "=", permissions?.user_id),
-            wb("entity_permissions.permission_id", "=", permissions?.permission_id),
+            wb(
+              "entity_permissions.permission_id",
+              "=",
+              permissions?.permission_id
+            ),
             wb("entity_permissions.related_id", "=", wb.ref("characters.id")),
           ]),
           wb("entity_permissions.role_id", "=", permissions?.role_id),
         ]),
-      ]),
+      ])
     )
     .$if(!!isPublic, (qb) => {
       if (isPublic) qb.where("characters.is_public", "=", isPublic);
@@ -990,8 +976,16 @@ FROM
       ? []
       : await db
           .selectFrom("characters")
-          .leftJoin("entity_permissions", "entity_permissions.related_id", "characters.id")
-          .leftJoin("characters_relationships", "character_b_id", "characters.id")
+          .leftJoin(
+            "entity_permissions",
+            "entity_permissions.related_id",
+            "characters.id"
+          )
+          .leftJoin(
+            "characters_relationships",
+            "character_b_id",
+            "characters.id"
+          )
           .where((wb) =>
             wb.and([
               wb("character_a_id", "in", ids),
@@ -1001,24 +995,42 @@ FROM
                 wb("characters.owner_id", "=", permissions?.user_id),
                 wb.and([
                   wb("entity_permissions.user_id", "=", permissions?.user_id),
-                  wb("entity_permissions.permission_id", "=", permissions?.permission_id),
-                  wb("entity_permissions.related_id", "=", wb.ref("character_a_id")),
+                  wb(
+                    "entity_permissions.permission_id",
+                    "=",
+                    permissions?.permission_id
+                  ),
+                  wb(
+                    "entity_permissions.related_id",
+                    "=",
+                    wb.ref("character_a_id")
+                  ),
                 ]),
                 wb("entity_permissions.role_id", "=", permissions?.role_id),
               ]),
-            ]),
+            ])
           )
           .$if(!!isPublic, (qb) => {
             if (isPublic) qb.where("characters.is_public", "=", isPublic);
 
             return qb;
           })
-          .select(["characters.id", "portrait_id", "full_name", "character_a_id", "characters.is_public"])
+          .select([
+            "characters.id",
+            "portrait_id",
+            "full_name",
+            "character_a_id",
+            "characters.is_public",
+          ])
           .execute();
   const additionalCharsChildren = await db
     .selectFrom("characters")
     .leftJoin("characters_relationships", "character_a_id", "characters.id")
-    .leftJoin("entity_permissions", "entity_permissions.related_id", "characters.id")
+    .leftJoin(
+      "entity_permissions",
+      "entity_permissions.related_id",
+      "characters.id"
+    )
     .where((wb) =>
       wb.and([
         wb("character_b_id", "in", ids),
@@ -1028,22 +1040,36 @@ FROM
           wb("characters.owner_id", "=", permissions?.user_id),
           wb.and([
             wb("entity_permissions.user_id", "=", permissions?.user_id),
-            wb("entity_permissions.permission_id", "=", permissions?.permission_id),
+            wb(
+              "entity_permissions.permission_id",
+              "=",
+              permissions?.permission_id
+            ),
             wb("entity_permissions.related_id", "=", wb.ref("character_b_id")),
           ]),
           wb("entity_permissions.role_id", "=", permissions?.role_id),
         ]),
-      ]),
+      ])
     )
     .$if(!!isPublic, (qb) => {
       if (isPublic) qb.where("characters.is_public", "=", isPublic);
 
       return qb;
     })
-    .select(["characters.id", "characters.portrait_id", "characters.full_name", "character_b_id", "characters.is_public"])
+    .select([
+      "characters.id",
+      "characters.portrait_id",
+      "characters.full_name",
+      "character_b_id",
+      "characters.is_public",
+    ])
     .execute();
 
-  const permittedCharacters = [...mainCharacters, ...additionalChars, ...additionalCharsChildren];
+  const permittedCharacters = [
+    ...mainCharacters,
+    ...additionalChars,
+    ...additionalCharsChildren,
+  ];
   const permittedIds = permittedCharacters.map((c) => c.id);
 
   const withParents = permittedCharacters
@@ -1052,11 +1078,19 @@ FROM
       const parents = baseCharacterRelationships.rows
         .filter((r) => r.character_a_id === char.id)
         .map((p) => p.character_b_id)
-        .concat(additionalChars.filter((c) => c.character_a_id === char.id).map((c) => c.id as string));
+        .concat(
+          additionalChars
+            .filter((c) => c.character_a_id === char.id)
+            .map((c) => c.id as string)
+        );
       const children = baseCharacterRelationships.rows
         .filter((r) => r.character_b_id === char.id)
         .map((p) => p.character_a_id)
-        .concat(additionalCharsChildren.filter((c) => c.character_b_id === char.id).map((c) => c.id as string));
+        .concat(
+          additionalCharsChildren
+            .filter((c) => c.character_b_id === char.id)
+            .map((c) => c.id as string)
+        );
       return { ...char, parents, children };
     });
   const uniqueChars = uniqBy(withParents, "id");
@@ -1075,11 +1109,16 @@ FROM
     const base = [];
     if ("parents" in c && c?.parents.length) {
       const filteredParents = isPublic
-        ? c.parents.filter((parent_id) => uniqueChars.some((char) => char.id === parent_id))
+        ? c.parents.filter((parent_id) =>
+            uniqueChars.some((char) => char.id === parent_id)
+          )
         : c.parents;
       if (filteredParents.length) {
         for (let index = 0; index < filteredParents.length; index++) {
-          if (permittedIds.includes(c.parents[index]) && permittedIds.includes(c.id))
+          if (
+            permittedIds.includes(c.parents[index]) &&
+            permittedIds.includes(c.id)
+          )
             base.push({
               id: randomUUID(),
               source_id: c.parents[index],
@@ -1094,11 +1133,16 @@ FROM
 
     if ("children" in c && c?.children.length) {
       const filteredChildren = isPublic
-        ? c.children.filter((child_id) => uniqueChars.some((char) => char.id === child_id))
+        ? c.children.filter((child_id) =>
+            uniqueChars.some((char) => char.id === child_id)
+          )
         : c.children;
 
       for (let index = 0; index < filteredChildren.length; index++) {
-        if (permittedIds.includes(c.children[index]) && permittedIds.includes(c.id))
+        if (
+          permittedIds.includes(c.children[index]) &&
+          permittedIds.includes(c.id)
+        )
           base.push({
             id: randomUUID(),
             source_id: c.id,
@@ -1112,8 +1156,16 @@ FROM
     return base;
   });
 
-  const edges = uniqBy(initialEdges, (edge) => [edge.source_id, edge.target_id]);
+  const edges = uniqBy(initialEdges, (edge) => [
+    edge.source_id,
+    edge.target_id,
+  ]);
   // Get ids of main branch/parent characters and their generations
 
-  return { data: { nodes, edges }, ok: true, message: MessageEnum.success, role_access: true };
+  return {
+    data: { nodes, edges },
+    ok: true,
+    message: MessageEnum.success,
+    role_access: true,
+  };
 }

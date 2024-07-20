@@ -3,9 +3,8 @@ import { SelectExpression } from "kysely";
 import { DB } from "kysely-codegen";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
 import { db } from "../database/db";
-import { getCharacterFamily, readCharacter } from "../database/queries";
+import { readCharacter } from "../database/queries";
 import {
-  ListCharacterFieldsTemplateSchema,
   ReadBlueprintSchema,
   ReadCalendarSchema,
   ReadCharacterSchema,
@@ -18,23 +17,14 @@ import {
 } from "../database/validation";
 import { MessageEnum } from "../enums";
 import {
-  PermissionDecorationType,
   RequestBodySchema,
   ResponseSchema,
   ResponseWithDataSchema,
 } from "../types";
-import { constructFilter, tagsRelationFilter } from "../utils";
-import { groupRelationFiltersByField } from "../utils/utils";
 
 export function single_entity_router(app: Elysia) {
   return app
-    .decorate("permissions", {
-      is_project_owner: false,
-      role_access: false,
-      user_id: "",
-      role_id: null,
-      permission_id: null,
-    } as PermissionDecorationType)
+
     .post(
       "/projects/:id",
       async ({ params, body }) => {
@@ -517,8 +507,7 @@ export function single_entity_router(app: Elysia) {
     )
     .post(
       "/characters/:id",
-      async ({ params, body, permissions }) =>
-        readCharacter(body, params, permissions, true),
+      async ({ params, body }) => readCharacter(body, params, {}, true),
       {
         body: ReadCharacterSchema,
         response: ResponseWithDataSchema,
@@ -805,179 +794,7 @@ export function single_entity_router(app: Elysia) {
         response: ResponseWithDataSchema,
       }
     )
-    .post(
-      "/character_fields_templates",
-      async ({ body }) => {
-        const data = await db
-          .selectFrom("character_fields_templates")
-          .distinctOn(
-            body.orderBy?.length
-              ? ([
-                  "character_fields_templates.id",
-                  ...body.orderBy.map((order) => order.field),
-                ] as any)
-              : "character_fields_templates.id"
-          )
-          .where(
-            "character_fields_templates.project_id",
-            "=",
-            body.data.project_id
-          )
-          .select(
-            (body.fields || [])?.map(
-              (field) => `character_fields_templates.${field}`
-            ) as SelectExpression<DB, "character_fields_templates">[]
-          )
-          .$if(
-            !!body?.filters?.and?.length || !!body?.filters?.or?.length,
-            (qb) => {
-              qb = constructFilter(
-                "character_fields_templates",
-                qb,
-                body.filters
-              );
-              return qb;
-            }
-          )
-          .$if(
-            !!body.relationFilters?.and?.length ||
-              !!body.relationFilters?.or?.length,
-            (qb) => {
-              const { tags } = groupRelationFiltersByField(
-                body.relationFilters || {}
-              );
-              if (tags?.filters?.length)
-                qb = tagsRelationFilter(
-                  "character_fields_templates",
-                  "_character_fields_templatesTotags",
-                  qb,
-                  tags?.filters || []
-                );
 
-              return qb;
-            }
-          )
-
-          .$if(!!body?.relations, (qb) => {
-            if (body?.relations?.character_fields) {
-              qb = qb.select((eb) =>
-                jsonArrayFrom(
-                  eb
-                    .selectFrom("character_fields")
-                    .whereRef(
-                      "character_fields_templates.id",
-                      "=",
-                      "character_fields.parent_id"
-                    )
-                    .select([
-                      "character_fields.id",
-                      "character_fields.title",
-                      "character_fields.field_type",
-                      "character_fields.options",
-                      "character_fields.sort",
-                      "character_fields.formula",
-                      "character_fields.random_table_id",
-                      (eb) =>
-                        jsonObjectFrom(
-                          eb
-                            .selectFrom("calendars")
-                            .select([
-                              "calendars.id",
-                              "calendars.title",
-                              "calendars.days",
-                              (sb) =>
-                                jsonArrayFrom(
-                                  sb
-                                    .selectFrom("months")
-                                    .select([
-                                      "months.id",
-                                      "months.title",
-                                      "months.days",
-                                    ])
-                                    .orderBy("months.sort")
-                                    .whereRef(
-                                      "months.parent_id",
-                                      "=",
-                                      "calendars.id"
-                                    )
-                                ).as("months"),
-                            ])
-                            .whereRef(
-                              "calendars.id",
-                              "=",
-                              "character_fields.calendar_id"
-                            )
-                        ).as("calendar"),
-                      (eb) =>
-                        jsonObjectFrom(
-                          eb
-                            .selectFrom("random_tables")
-                            .select([
-                              "random_tables.id",
-                              "random_tables.title",
-                              (ebb) =>
-                                jsonArrayFrom(
-                                  ebb
-                                    .selectFrom("random_table_options")
-                                    .whereRef(
-                                      "random_tables.id",
-                                      "=",
-                                      "random_table_options.parent_id"
-                                    )
-                                    .select([
-                                      "id",
-                                      "title",
-                                      (ebbb) =>
-                                        jsonArrayFrom(
-                                          ebbb
-                                            .selectFrom(
-                                              "random_table_suboptions"
-                                            )
-                                            .whereRef(
-                                              "random_table_suboptions.parent_id",
-                                              "=",
-                                              "random_table_options.id"
-                                            )
-                                            .select(["id", "title"])
-                                        ).as("random_table_suboptions"),
-                                    ])
-                                ).as("random_table_options"),
-                            ])
-                            .whereRef(
-                              "random_tables.id",
-                              "=",
-                              "character_fields.random_table_id"
-                            )
-                        ).as("random_table"),
-                    ])
-                    .orderBy(["character_fields.sort"])
-                ).as("character_fields")
-              );
-            }
-
-            return qb;
-          })
-          .execute();
-        return {
-          data,
-          message: MessageEnum.success,
-          ok: true,
-          role_access: true,
-        };
-      },
-      {
-        body: ListCharacterFieldsTemplateSchema,
-        response: ResponseWithDataSchema,
-      }
-    )
-    .get(
-      "/characters/family/:relation_type_id/:id/:count",
-      async ({ params, permissions }) =>
-        getCharacterFamily(params, permissions, true),
-      {
-        response: ResponseWithDataSchema,
-      }
-    )
     .post(
       "/assets/:project_id/:type/:id",
       async ({ params, body }) => {
