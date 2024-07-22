@@ -177,6 +177,10 @@ export function multiple_entity_router(app: Elysia) {
 
             return qb;
           })
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          )
           .execute();
         return {
           data,
@@ -223,6 +227,10 @@ export function multiple_entity_router(app: Elysia) {
           .leftJoin("months as em", "events.end_month_id", "em.id")
           .select(["sm.sort as start_month", "em.sort as end_month"])
           .where("events.is_public", "=", true)
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          )
           .execute();
 
         return {
@@ -289,7 +297,11 @@ export function multiple_entity_router(app: Elysia) {
               );
             }
             return qb;
-          });
+          })
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          );
         const data = await result.execute();
 
         return {
@@ -325,7 +337,11 @@ export function multiple_entity_router(app: Elysia) {
           )
           .select(["blueprints.icon"])
           .where("blueprints.project_id", "=", body.data.project_id)
-          .where("blueprint_instances.is_public", "=", true);
+          .where("blueprint_instances.is_public", "=", true)
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          );
 
         const data = await query.execute();
         return {
@@ -367,6 +383,10 @@ export function multiple_entity_router(app: Elysia) {
             return qb;
           })
           .$if(!!body.orderBy, (qb) => constructOrdering(body.orderBy, qb))
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          )
           .execute();
         return {
           data,
@@ -400,6 +420,10 @@ export function multiple_entity_router(app: Elysia) {
               qb = constructFilter("maps", qb, body.filters);
               return qb;
             }
+          )
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
           )
           .execute();
         return {
@@ -471,6 +495,10 @@ export function multiple_entity_router(app: Elysia) {
               return qb;
             }
           )
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          )
           .execute();
 
         return {
@@ -511,6 +539,7 @@ export function multiple_entity_router(app: Elysia) {
               return qb;
             }
           )
+
           .execute();
 
         return {
