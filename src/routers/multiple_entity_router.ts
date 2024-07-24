@@ -381,7 +381,6 @@ export function multiple_entity_router(app: Elysia) {
           .selectFrom("documents")
           .where("documents.project_id", "=", body?.data?.project_id)
           .where("documents.is_public", "=", true)
-          .where("documents.is_folder", "=", true)
           .where((wb) =>
             wb.or([wb("is_folder", "=", false), wb("is_folder", "is", null)])
           )
