@@ -21,6 +21,7 @@ import {
   ResponseSchema,
   ResponseWithDataSchema,
 } from "../types";
+import { ReadManuscriptSchema } from "../database/validation/manuscripts";
 
 export function single_entity_router(app: Elysia) {
   return app
@@ -32,17 +33,12 @@ export function single_entity_router(app: Elysia) {
           .selectFrom("projects")
           .where("id", "=", params.id)
           .$if(!body?.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body?.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(body.fields as SelectExpression<DB, "projects">[])
-          )
+          .select(body.fields as SelectExpression<DB, "projects">[])
           .executeTakeFirstOrThrow();
         return {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -51,16 +47,28 @@ export function single_entity_router(app: Elysia) {
       }
     )
     .post(
+      "/manuscripts/:id",
+      async ({ params, body }) => {
+        const data = await db
+          .selectFrom("manuscripts")
+          .select(body.fields as SelectExpression<DB, "manuscripts">[])
+          .where("manuscripts.id", "=", params.id)
+          .where("is_public", "=", true)
+          .executeTakeFirstOrThrow();
+
+        return { data, ok: true, message: "Succcess." };
+      },
+      {
+        body: ReadManuscriptSchema,
+        response: ResponseWithDataSchema,
+      }
+    )
+    .post(
       "/blueprints/:id",
       async ({ params, body }) => {
         const data = await db
           .selectFrom("blueprints")
-          .$if(!body.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(body.fields as SelectExpression<DB, "blueprints">[])
-          )
+          .select(body.fields as SelectExpression<DB, "blueprints">[])
           .where("blueprints.id", "=", params.id)
           .$if(!!body?.relations?.blueprint_fields, (qb) =>
             qb.select((eb) =>
@@ -186,7 +194,6 @@ export function single_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -491,13 +498,11 @@ export function single_entity_router(app: Elysia) {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -520,26 +525,19 @@ export function single_entity_router(app: Elysia) {
           .selectFrom("documents")
           .where("id", "=", params.id)
           .where("is_public", "=", true)
-          .$if(!body?.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body?.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(body.fields as SelectExpression<DB, "documents">[])
-          )
+          .select(body.fields as SelectExpression<DB, "documents">[])
           .executeTakeFirst();
         if (data?.is_public)
           return {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
 
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -552,12 +550,7 @@ export function single_entity_router(app: Elysia) {
       async ({ params, body }) => {
         const data = await db
           .selectFrom("maps")
-          .$if(!body.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(body.fields as SelectExpression<DB, "maps">[])
-          )
+          .select(body.fields as SelectExpression<DB, "maps">[])
           .where("maps.id", "=", params.id)
           .where("maps.is_public", "=", true)
           .$if(!!body?.relations?.map_pins, (qb) =>
@@ -629,13 +622,11 @@ export function single_entity_router(app: Elysia) {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -710,14 +701,12 @@ export function single_entity_router(app: Elysia) {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
 
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -732,12 +721,7 @@ export function single_entity_router(app: Elysia) {
           .selectFrom("calendars")
           .where("calendars.id", "=", params.id)
           .where("calendars.is_public", "=", true)
-          .$if(!body.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(body.fields as SelectExpression<DB, "calendars">[])
-          )
+          .select(body.fields as SelectExpression<DB, "calendars">[])
           .$if(!!body?.relations, (qb) => {
             if (body.relations?.months) {
               qb = qb.select((eb) =>
@@ -780,13 +764,11 @@ export function single_entity_router(app: Elysia) {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -802,18 +784,12 @@ export function single_entity_router(app: Elysia) {
           .selectFrom("images")
           .where("images.id", "=", params.id)
           .where("images.is_public", "=", true)
-          .$if(!body.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(body.fields as SelectExpression<DB, "images">[])
-          )
+          .select(body.fields as SelectExpression<DB, "images">[])
           .executeTakeFirst();
         return {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -856,13 +832,11 @@ export function single_entity_router(app: Elysia) {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -893,13 +867,11 @@ export function single_entity_router(app: Elysia) {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -912,12 +884,7 @@ export function single_entity_router(app: Elysia) {
       async ({ params, body }) => {
         const data = await db
           .selectFrom("events")
-          .$if(!body.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(body.fields as SelectExpression<DB, "events">[])
-          )
+          .select(body.fields as SelectExpression<DB, "events">[])
           .where("events.id", "=", params.id)
           .where("events.is_public", "=", true)
           .executeTakeFirst();
@@ -927,13 +894,11 @@ export function single_entity_router(app: Elysia) {
             data,
             message: MessageEnum.success,
             ok: true,
-            role_access: true,
           };
         return {
           data: { is_public: false },
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {

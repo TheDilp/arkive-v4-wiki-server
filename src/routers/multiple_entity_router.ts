@@ -22,9 +22,37 @@ import { SelectExpression } from "kysely";
 import { DB } from "kysely-codegen";
 import { db } from "../database/db";
 import { getCharacterFamily } from "../database/queries";
+import { ListManuscriptSchema } from "../database/validation/manuscripts";
 
 export function multiple_entity_router(app: Elysia) {
   return app
+    .post(
+      "manuscripts",
+      async ({ body }) => {
+        const data = await db
+          .selectFrom("manuscripts")
+          .select(
+            body.fields.map(
+              (field) => `manuscripts.${field}`
+            ) as SelectExpression<DB, "manuscripts">[]
+          )
+          .$if(!!body.orderBy?.length, (qb) => {
+            qb = constructOrdering(body.orderBy, qb);
+            return qb;
+          })
+          .limit(body.pagination?.limit || 10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          )
+          .where("project_id", "=", body.data.project_id)
+          .where("is_public", "=", true)
+          .execute();
+
+        return { data, ok: true, message: "Success." };
+      },
+      { body: ListManuscriptSchema, response: ResponseWithDataSchema }
+    )
+
     .post(
       "/character_fields_templates",
       async ({ body }) => {
@@ -186,7 +214,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -194,7 +221,6 @@ export function multiple_entity_router(app: Elysia) {
         response: ResponseWithDataSchema,
       }
     )
-
     .post(
       "/events",
       async ({ body }) => {
@@ -237,7 +263,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -308,7 +333,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -348,7 +372,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -392,7 +415,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -430,7 +452,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -469,7 +490,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -505,7 +525,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -546,7 +565,6 @@ export function multiple_entity_router(app: Elysia) {
           data,
           message: MessageEnum.success,
           ok: true,
-          role_access: true,
         };
       },
       {
@@ -588,7 +606,6 @@ export function multiple_entity_router(app: Elysia) {
         return {
           data,
           ok: true,
-          role_access: true,
           message: MessageEnum.success,
         };
       },
@@ -597,7 +614,6 @@ export function multiple_entity_router(app: Elysia) {
         response: ResponseWithDataSchema,
       }
     )
-
     .get(
       "/characters/family/:relation_type_id/:id/:count",
       async ({ params }) => getCharacterFamily(params, {}, true),
