@@ -227,16 +227,11 @@ export function multiple_entity_router(app: Elysia) {
         const data = await db
           .selectFrom("events")
 
-          .$if(!body.fields?.length, (qb) => qb.selectAll())
-          .$if(!!body.fields?.length, (qb) =>
-            qb
-              .clearSelect()
-              .select(
-                body.fields.map((f) => `events.${f}`) as SelectExpression<
-                  DB,
-                  "events"
-                >[]
-              )
+          .select(
+            body.fields.map((f) => `events.${f}`) as SelectExpression<
+              DB,
+              "events"
+            >[]
           )
           .$if(
             !!body?.filters?.and?.length || !!body?.filters?.or?.length,
@@ -386,6 +381,7 @@ export function multiple_entity_router(app: Elysia) {
           .selectFrom("documents")
           .where("documents.project_id", "=", body?.data?.project_id)
           .where("documents.is_public", "=", true)
+          .where("documents.is_folder", "=", true)
           .where((wb) =>
             wb.or([wb("is_folder", "=", false), wb("is_folder", "is", null)])
           )
@@ -429,6 +425,7 @@ export function multiple_entity_router(app: Elysia) {
           .selectFrom("maps")
           .where("project_id", "=", body.data.project_id)
           .where("is_public", "=", true)
+          .where("is_folder", "=", true)
           .where((wb) =>
             wb.or([wb("is_folder", "=", false), wb("is_folder", "is", null)])
           )
@@ -466,6 +463,7 @@ export function multiple_entity_router(app: Elysia) {
           .selectFrom("graphs")
           .where("project_id", "=", body.data.project_id)
           .where("is_public", "=", true)
+          .where("is_folder", "=", true)
           .where((wb) =>
             wb.or([wb("is_folder", "=", false), wb("is_folder", "is", null)])
           )
@@ -504,6 +502,7 @@ export function multiple_entity_router(app: Elysia) {
           .selectFrom("calendars")
           .where("calendars.project_id", "=", body?.data?.project_id)
           .where("calendars.is_public", "=", true)
+          .where("is_folder", "=", true)
           .where((wb) =>
             wb.or([wb("is_folder", "=", false), wb("is_folder", "is", null)])
           )
@@ -543,6 +542,7 @@ export function multiple_entity_router(app: Elysia) {
           )
           .where("project_id", "=", body.data.project_id)
           .where("is_public", "=", true)
+          .where("is_folder", "=", true)
           .where((wb) =>
             wb.or([wb("is_folder", "=", false), wb("is_folder", "is", null)])
           )
