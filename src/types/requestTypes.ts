@@ -136,11 +136,9 @@ export const RequestBodySchema = t.Object({
 export const ResponseSchema = t.Object({
   message: t.String(),
   ok: t.Boolean(),
-  role_access: t.Boolean(),
 });
 export const ResponseWithDataSchema = t.Object({
   data: t.Any(),
   message: t.String(),
   ok: t.Boolean(),
-  role_access: t.Boolean(),
 });
