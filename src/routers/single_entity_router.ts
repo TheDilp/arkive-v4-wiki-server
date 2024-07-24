@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { SelectExpression } from "kysely";
+import { SelectExpression, sql } from "kysely";
 import { DB } from "kysely-codegen";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
 import { db } from "../database/db";
@@ -49,12 +49,189 @@ export function single_entity_router(app: Elysia) {
     .post(
       "/manuscripts/:id",
       async ({ params, body }) => {
-        const data = await db
+        let query = db
           .selectFrom("manuscripts")
           .select(body.fields as SelectExpression<DB, "manuscripts">[])
           .where("manuscripts.id", "=", params.id)
-          .where("is_public", "=", true)
-          .executeTakeFirstOrThrow();
+          .where("is_public", "=", true);
+        if (body?.relations?.entities) {
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_characters")
+                .leftJoin(
+                  "characters",
+                  "characters.id",
+                  "manuscript_characters.related_id"
+                )
+                .where("manuscript_characters.parent_id", "=", params.id)
+                .where("characters.is_public", "=", true)
+                .select([
+                  "manuscript_characters.id",
+                  "manuscript_characters.parent_id",
+                  "manuscript_characters.related_id",
+                  "manuscript_characters.sort",
+                  "characters.full_name as title",
+                  "characters.portrait_id as image_id",
+                  sql`'characters'::TEXT`.as("type"),
+                ])
+            ).as("characters")
+          );
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_blueprint_instances")
+                .leftJoin(
+                  "blueprint_instances",
+                  "blueprint_instances.id",
+                  "manuscript_blueprint_instances.related_id"
+                )
+                .leftJoin(
+                  "blueprints",
+                  "blueprints.id",
+                  "blueprint_instances.parent_id"
+                )
+                .where(
+                  "manuscript_blueprint_instances.parent_id",
+                  "=",
+                  params.id
+                )
+                .where("blueprint_instances.is_public", "=", true)
+
+                .select([
+                  "manuscript_blueprint_instances.id",
+                  "manuscript_blueprint_instances.parent_id",
+                  "manuscript_blueprint_instances.related_id",
+                  "manuscript_blueprint_instances.sort",
+                  "blueprint_instances.title",
+                  "blueprints.icon",
+                  sql`'blueprint_instances'::TEXT`.as("type"),
+                ])
+            ).as("blueprint_instances")
+          );
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_documents")
+                .leftJoin(
+                  "documents",
+                  "documents.id",
+                  "manuscript_documents.related_id"
+                )
+                .where("manuscript_documents.parent_id", "=", params.id)
+                .where("documents.is_public", "=", true)
+                .select([
+                  "manuscript_documents.id",
+                  "manuscript_documents.parent_id",
+                  "manuscript_documents.related_id",
+                  "manuscript_documents.sort",
+                  "documents.title",
+                  "documents.icon",
+                  "documents.image_id",
+                  sql`'documents'::TEXT`.as("type"),
+                ])
+            ).as("documents")
+          );
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_maps")
+                .leftJoin("maps", "maps.id", "manuscript_maps.related_id")
+                .where("manuscript_maps.parent_id", "=", params.id)
+                .where("maps.is_public", "=", true)
+                .select([
+                  "manuscript_maps.id",
+                  "manuscript_maps.parent_id",
+                  "manuscript_maps.related_id",
+                  "manuscript_maps.sort",
+                  "maps.title",
+                  "maps.icon",
+                  "maps.image_id",
+                  sql`'maps'::TEXT`.as("type"),
+                ])
+            ).as("maps")
+          );
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_map_pins")
+                .leftJoin(
+                  "map_pins",
+                  "map_pins.id",
+                  "manuscript_map_pins.related_id"
+                )
+                .where("manuscript_map_pins.parent_id", "=", params.id)
+                .where("map_pins.is_public", "=", true)
+                .select([
+                  "manuscript_map_pins.id",
+                  "manuscript_map_pins.parent_id",
+                  "manuscript_map_pins.related_id",
+                  "manuscript_map_pins.sort",
+                  "map_pins.title",
+                  "map_pins.icon",
+                  "map_pins.image_id",
+                  sql`'map_pins'::TEXT`.as("type"),
+                ])
+            ).as("map_pins")
+          );
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_graphs")
+                .leftJoin("graphs", "graphs.id", "manuscript_graphs.related_id")
+                .where("manuscript_graphs.parent_id", "=", params.id)
+                .where("graphs.is_public", "=", true)
+                .select([
+                  "manuscript_graphs.id",
+                  "manuscript_graphs.parent_id",
+                  "manuscript_graphs.related_id",
+                  "manuscript_graphs.sort",
+                  "graphs.title",
+                  "graphs.icon",
+                  sql`'graphs'::TEXT`.as("type"),
+                ])
+            ).as("graphs")
+          );
+
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_events")
+                .leftJoin("events", "events.id", "manuscript_events.related_id")
+                .where("manuscript_events.parent_id", "=", params.id)
+                .where("events.is_public", "=", true)
+                .select([
+                  "manuscript_events.id",
+                  "manuscript_events.parent_id",
+                  "manuscript_events.related_id",
+                  "manuscript_events.sort",
+                  "events.title",
+                  "events.image_id",
+                  sql`'events'::TEXT`.as("type"),
+                ])
+            ).as("events")
+          );
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("manuscript_images")
+                .leftJoin("images", "images.id", "manuscript_images.related_id")
+                .where("manuscript_images.parent_id", "=", params.id)
+                .where("images.is_public", "=", true)
+                .select([
+                  "manuscript_images.id",
+                  "manuscript_images.parent_id",
+                  "manuscript_images.related_id",
+                  "manuscript_images.sort",
+                  "images.title",
+
+                  sql`'images'::TEXT`.as("type"),
+                ])
+            ).as("images")
+          );
+        }
+
+        const data = await query.executeTakeFirstOrThrow();
 
         return { data, ok: true, message: "Succcess." };
       },
