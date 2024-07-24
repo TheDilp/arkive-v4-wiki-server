@@ -73,6 +73,7 @@ export function single_entity_router(app: Elysia) {
                   "manuscript_characters.sort",
                   "characters.full_name as title",
                   "characters.portrait_id as image_id",
+                  "characters.is_public",
                   sql`'characters'::TEXT`.as("type"),
                 ])
             ).as("characters")
@@ -103,6 +104,7 @@ export function single_entity_router(app: Elysia) {
                   "manuscript_blueprint_instances.parent_id",
                   "manuscript_blueprint_instances.related_id",
                   "manuscript_blueprint_instances.sort",
+                  "blueprint_instances.is_public",
                   "blueprint_instances.title",
                   "blueprints.icon",
                   sql`'blueprint_instances'::TEXT`.as("type"),
@@ -125,6 +127,7 @@ export function single_entity_router(app: Elysia) {
                   "manuscript_documents.parent_id",
                   "manuscript_documents.related_id",
                   "manuscript_documents.sort",
+                  "documents.is_public",
                   "documents.title",
                   "documents.icon",
                   "documents.image_id",
@@ -147,6 +150,7 @@ export function single_entity_router(app: Elysia) {
                   "maps.title",
                   "maps.icon",
                   "maps.image_id",
+                  "maps.is_public",
                   sql`'maps'::TEXT`.as("type"),
                 ])
             ).as("maps")
@@ -170,6 +174,7 @@ export function single_entity_router(app: Elysia) {
                   "map_pins.title",
                   "map_pins.icon",
                   "map_pins.image_id",
+                  "map_pins.is_public",
                   sql`'map_pins'::TEXT`.as("type"),
                 ])
             ).as("map_pins")
@@ -188,6 +193,7 @@ export function single_entity_router(app: Elysia) {
                   "manuscript_graphs.sort",
                   "graphs.title",
                   "graphs.icon",
+                  "graphs.is_public",
                   sql`'graphs'::TEXT`.as("type"),
                 ])
             ).as("graphs")
@@ -207,6 +213,8 @@ export function single_entity_router(app: Elysia) {
                   "manuscript_events.sort",
                   "events.title",
                   "events.image_id",
+                  "events.is_public",
+
                   sql`'events'::TEXT`.as("type"),
                 ])
             ).as("events")
@@ -224,6 +232,7 @@ export function single_entity_router(app: Elysia) {
                   "manuscript_images.related_id",
                   "manuscript_images.sort",
                   "images.title",
+                  "images.is_public",
 
                   sql`'images'::TEXT`.as("type"),
                 ])
