@@ -27,7 +27,7 @@ import { ListManuscriptSchema } from "../database/validation/manuscripts";
 export function multiple_entity_router(app: Elysia) {
   return app
     .post(
-      "manuscripts",
+      "/manuscripts",
       async ({ body }) => {
         const data = await db
           .selectFrom("manuscripts")
