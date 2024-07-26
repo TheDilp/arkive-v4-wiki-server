@@ -698,22 +698,17 @@ export async function readCharacter(
         data: rest,
         message: MessageEnum.success,
         ok: true,
-
-        role_access: true,
       };
     return {
       data: { is_public: false },
       message: MessageEnum.success,
       ok: true,
-
-      role_access: true,
     };
   }
   return {
     data: rest,
     message: MessageEnum.success,
     ok: true,
-    role_access: true,
   };
 }
 

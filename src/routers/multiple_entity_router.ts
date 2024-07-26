@@ -101,7 +101,6 @@ export function multiple_entity_router(app: Elysia) {
                   qb,
                   tags?.filters || []
                 );
-
               return qb;
             }
           )
