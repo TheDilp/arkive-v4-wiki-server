@@ -711,6 +711,7 @@ export function single_entity_router(app: Elysia) {
           .selectFrom("documents")
           .where("id", "=", params.id)
           .where("is_public", "=", true)
+          .where("is_folder", "=", false)
           .select(body.fields as SelectExpression<DB, "documents">[])
           .executeTakeFirst();
         if (data?.is_public)
@@ -739,6 +740,8 @@ export function single_entity_router(app: Elysia) {
           .select(body.fields as SelectExpression<DB, "maps">[])
           .where("maps.id", "=", params.id)
           .where("maps.is_public", "=", true)
+          .where("maps.is_folder", "=", false)
+
           .$if(!!body?.relations?.map_pins, (qb) =>
             qb.select((eb) =>
               jsonArrayFrom(
@@ -828,6 +831,7 @@ export function single_entity_router(app: Elysia) {
           .selectFrom("graphs")
           .where("graphs.id", "=", params.id)
           .where("graphs.is_public", "=", true)
+          .where("graphs.is_folder", "=", false)
           .select(body.fields as SelectExpression<DB, "graphs">[])
           .$if(!!body?.relations?.nodes, (qb) =>
             qb.select((eb) =>
@@ -907,6 +911,7 @@ export function single_entity_router(app: Elysia) {
           .selectFrom("calendars")
           .where("calendars.id", "=", params.id)
           .where("calendars.is_public", "=", true)
+          .where("calendars.is_folder", "=", false)
           .select(body.fields as SelectExpression<DB, "calendars">[])
           .$if(!!body?.relations, (qb) => {
             if (body.relations?.months) {
@@ -990,6 +995,7 @@ export function single_entity_router(app: Elysia) {
         const data = await db
           .selectFrom("dictionaries")
           .where("dictionaries.id", "=", params.id)
+          .where("dictionaries.is_folder", "=", false)
           .select(
             body.fields.map((f) => `dictionaries.${f}`) as SelectExpression<
               DB,
