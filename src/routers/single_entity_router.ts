@@ -713,8 +713,8 @@ export function single_entity_router(app: Elysia) {
           .where("documents.is_public", "=", true)
           .where((wb) =>
             wb.or([
-              wb("documents.is_public", "=", false),
-              wb("documents.is_public", "=", null),
+              wb("documents.is_folder", "=", false),
+              wb("documents.is_folder", "is", null),
             ])
           )
           .select(body.fields as SelectExpression<DB, "documents">[])
@@ -747,8 +747,8 @@ export function single_entity_router(app: Elysia) {
           .where("maps.is_public", "=", true)
           .where((wb) =>
             wb.or([
-              wb("maps.is_public", "=", false),
-              wb("maps.is_public", "=", null),
+              wb("maps.is_folder", "=", false),
+              wb("maps.is_folder", "is", null),
             ])
           )
           .$if(!!body?.relations?.map_pins, (qb) =>
@@ -835,71 +835,70 @@ export function single_entity_router(app: Elysia) {
     .post(
       "/graphs/:id",
       async ({ params, body }) => {
-        const data = await db
+        let query = db
 
           .selectFrom("graphs")
           .where("graphs.id", "=", params.id)
           .where("graphs.is_public", "=", true)
           .where((wb) =>
             wb.or([
-              wb("graphs.is_public", "=", false),
-              wb("graphs.is_public", "=", null),
+              wb("graphs.is_folder", "=", false),
+              wb("graphs.is_folder", "is", null),
             ])
           )
-          .select(body.fields as SelectExpression<DB, "graphs">[])
-          .$if(!!body?.relations?.nodes, (qb) =>
-            qb.select((eb) =>
-              jsonArrayFrom(
-                eb
-                  .selectFrom("nodes")
-                  .where("nodes.parent_id", "=", params.id)
-                  .select((sb) => [
-                    "nodes.id",
-                    "nodes.label",
-                    "nodes.icon",
-                    "nodes.background_color",
-                    "nodes.background_opacity",
-                    "nodes.font_color",
-                    "nodes.font_family",
-                    "nodes.font_size",
-                    "nodes.type",
-                    "nodes.image_id",
-                    "nodes.text_h_align",
-                    "nodes.text_v_align",
-                    "nodes.x",
-                    "nodes.y",
-                    "nodes.z_index",
-                    "nodes.width",
-                    "nodes.height",
-                    "nodes.is_locked",
-                    jsonObjectFrom(
-                      sb
-                        .selectFrom("characters")
-                        .select([
-                          "characters.first_name",
-                          "characters.last_name",
-                          "characters.portrait_id",
-                        ])
-                        .whereRef("characters.id", "=", "nodes.character_id")
-                        .where("characters.is_public", "=", true)
-                    ).as("character"),
-                  ])
-              ).as("nodes")
-            )
-          )
-          .$if(!!body?.relations?.edges, (qb) =>
-            qb.select((eb) =>
-              jsonArrayFrom(
-                eb
-                  .selectFrom("edges")
-                  .where("edges.parent_id", "=", params.id)
-                  .selectAll()
-              ).as("edges")
-            )
-          )
+          .select(body.fields as SelectExpression<DB, "graphs">[]);
+        if (body?.relations?.nodes) {
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("nodes")
+                .where("nodes.parent_id", "=", params.id)
+                .select((sb) => [
+                  "nodes.id",
+                  "nodes.label",
+                  "nodes.icon",
+                  "nodes.background_color",
+                  "nodes.background_opacity",
+                  "nodes.font_color",
+                  "nodes.font_family",
+                  "nodes.font_size",
+                  "nodes.type",
+                  "nodes.image_id",
+                  "nodes.text_h_align",
+                  "nodes.text_v_align",
+                  "nodes.x",
+                  "nodes.y",
+                  "nodes.z_index",
+                  "nodes.width",
+                  "nodes.height",
+                  "nodes.is_locked",
+                  jsonObjectFrom(
+                    sb
+                      .selectFrom("characters")
+                      .select([
+                        "characters.first_name",
+                        "characters.last_name",
+                        "characters.portrait_id",
+                      ])
+                      .whereRef("characters.id", "=", "nodes.character_id")
+                      .where("characters.is_public", "=", true)
+                  ).as("character"),
+                ])
+            ).as("nodes")
+          );
+        }
+        if (body?.relations?.edges) {
+          query = query.select((eb) =>
+            jsonArrayFrom(
+              eb
+                .selectFrom("edges")
+                .where("edges.parent_id", "=", params.id)
+                .selectAll()
+            ).as("edges")
+          );
+        }
 
-          .executeTakeFirst();
-
+        const data = await query.executeTakeFirst();
         if (data?.is_public)
           return {
             data,
@@ -927,8 +926,8 @@ export function single_entity_router(app: Elysia) {
           .where("calendars.is_public", "=", true)
           .where((wb) =>
             wb.or([
-              wb("calendars.is_public", "=", false),
-              wb("calendars.is_public", "=", null),
+              wb("calendars.is_folder", "=", false),
+              wb("calendars.is_folder", "is", null),
             ])
           )
           .select(body.fields as SelectExpression<DB, "calendars">[])
