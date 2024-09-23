@@ -9,7 +9,7 @@ import {
   ListWordSchema,
   PublicListBlueprintInstanceSchema,
 } from "../database/validation";
-import { ResponseWithDataSchema } from "../types";
+import { RequestBodySchema, ResponseWithDataSchema } from "../types";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
 import {
   constructFilter,
@@ -26,6 +26,30 @@ import { ListManuscriptSchema } from "../database/validation/manuscripts";
 
 export function multiple_entity_router(app: Elysia) {
   return app
+    .post(
+      "/projects",
+      async ({ body }) => {
+        const data = await db
+          .selectFrom("projects")
+          .innerJoin("users", "projects.owner_id", "users.id")
+          .select([
+            "projects.id",
+            "projects.title",
+            "projects.description",
+            "projects.image_id",
+            "users.image",
+          ])
+          .limit(10)
+          .offset(
+            (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
+          )
+          .where("projects.is_public", "=", true)
+          .execute();
+
+        return { data, ok: true, message: "Success." };
+      },
+      { body: RequestBodySchema, response: ResponseWithDataSchema }
+    )
     .post(
       "/manuscripts",
       async ({ body }) => {

@@ -2,20 +2,6 @@ import { t } from "elysia";
 
 import { RequestBodySchema } from "../../types/requestTypes";
 
-const ManuscriptEntitySchema = t.Object({
-  parent_id: t.Union([t.Null(), t.String()]),
-  manuscript_id: t.String(),
-  document_id: t.Union([t.Null(), t.String()]),
-  character_id: t.Union([t.Null(), t.String()]),
-  blueprint_instance_id: t.Union([t.Null(), t.String()]),
-  map_id: t.Union([t.Null(), t.String()]),
-  map_pin_id: t.Union([t.Null(), t.String()]),
-  graph_id: t.Union([t.Null(), t.String()]),
-  event_id: t.Union([t.Null(), t.String()]),
-  image_id: t.Union([t.Null(), t.String()]),
-  sort: t.Number(),
-});
-
 export const ListManuscriptSchema = t.Intersect([
   RequestBodySchema,
   t.Object({
