@@ -18,7 +18,7 @@ import {
   TagQuery,
   tagsRelationFilter,
 } from "../utils";
-import { SelectExpression } from "kysely";
+import { SelectExpression, sql } from "kysely";
 import { DB } from "kysely-codegen";
 import { db } from "../database/db";
 import { getCharacterFamily } from "../database/queries";
@@ -37,9 +37,9 @@ export function multiple_entity_router(app: Elysia) {
             "projects.title",
             "projects.description",
             "projects.image_id",
-            "users.image",
-          ])
-          .limit(10)
+            sql<string>`JSON_BUILD_OBJECT('nickname', users.nickname, 'image', users.image) as owner`,
+          ] as SelectExpression<DB, "projects" | "users">[])
+          .limit(body?.pagination?.limit || 10)
           .offset(
             (body.pagination?.page || 0) * (body?.pagination?.limit || 10)
           )
