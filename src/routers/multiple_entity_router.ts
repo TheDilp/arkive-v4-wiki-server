@@ -632,6 +632,45 @@ export function multiple_entity_router(app: Elysia) {
         response: ResponseWithDataSchema,
       }
     )
+    .post(
+      "/assets/all",
+      async ({ body }) => {
+        const data = await db
+          .selectFrom("images")
+          .limit(body?.pagination?.limit || 10)
+          .offset(
+            (body?.pagination?.page ?? 0) * (body?.pagination?.limit || 10)
+          )
+          .select(
+            body.fields.map((f) => `images.${f}`) as SelectExpression<
+              DB,
+              "images"
+            >[]
+          )
+          .$if(!!body.orderBy?.length, (qb) => {
+            qb = constructOrdering(body.orderBy, qb);
+            return qb;
+          })
+          .$if(
+            !!body?.filters?.and?.length || !!body?.filters?.or?.length,
+            (qb) => {
+              qb = constructFilter("images", qb, body.filters);
+              return qb;
+            }
+          )
+          .where("images.is_public", "=", true)
+          .execute();
+        return {
+          data,
+          ok: true,
+          message: MessageEnum.success,
+        };
+      },
+      {
+        body: RequestBodySchema,
+        response: ResponseWithDataSchema,
+      }
+    )
     .get(
       "/characters/family/:relation_type_id/:id/:count",
       async ({ params }) => getCharacterFamily(params, {}, true),
