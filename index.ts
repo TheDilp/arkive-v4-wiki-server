@@ -1,8 +1,8 @@
 import { Elysia } from "elysia";
-import { single_entity_router } from "./routers/single_entity_router";
+import { single_entity_router } from "./src/routers/single_entity_router";
 import cors from "@elysiajs/cors";
-import { multiple_entity_router, search_router } from "./routers";
-import { NoPublicAccess } from "./enums";
+import { multiple_entity_router, search_router } from "./src/routers";
+import { NoPublicAccess } from "./src/enums";
 
 const app = new Elysia()
   .error({
