@@ -63,6 +63,7 @@ const app = new Elysia()
       methods: ["GET", "POST"],
     })
   )
+  .get("/health_check", async () => "Ok")
   .onStart(() => console.info(`Listening on port ${process.env.PORT} 🚀`));
 
 app.listen(process.env.PORT as string);
