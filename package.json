@@ -2,7 +2,7 @@
   "name": "arkive-v4-wiki-server",
   "version": "1.0.50",
   "scripts": {
-    "start:dev": "bun run --watch src/index.ts",
+    "start:dev": "bun run --watch index.ts",
     "generate-schema": "bun run kysely-codegen"
   },
   "dependencies": {
@@ -24,5 +24,5 @@
     "@types/pg": "^8.11.6",
     "bun-types": "latest"
   },
-  "module": "src/index.js"
+  "module": "index.js"
 }
