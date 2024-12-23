@@ -64,6 +64,9 @@ const app = new Elysia()
     })
   )
   .get("/health_check", async () => "Ok")
-  .onStart(() => console.info(`Listening on port ${process.env.PORT} 🚀`));
+  .onStart(() => {
+    console.info("WIKI CLIENT URL", process.env.WIKI_CLIENT_URL);
+    console.info(`Listening on port ${process.env.PORT} 🚀`);
+  });
 
 app.listen(process.env.PORT as string);
