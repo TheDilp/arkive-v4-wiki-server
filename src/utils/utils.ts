@@ -24,7 +24,6 @@ type MainRandomPickType = {
   id: string;
   title: string;
   description?: string | null;
-  suboptions?: { id: string; title: string }[];
 };
 
 export type GroupedQueryFilter = RequestFilterType & { type: "AND" | "OR" };

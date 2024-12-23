@@ -303,21 +303,7 @@ export function single_entity_router(app: Elysia) {
                                     "=",
                                     "random_table_options.parent_id"
                                   )
-                                  .select([
-                                    "id",
-                                    "title",
-                                    (ebbb) =>
-                                      jsonArrayFrom(
-                                        ebbb
-                                          .selectFrom("random_table_suboptions")
-                                          .whereRef(
-                                            "random_table_suboptions.parent_id",
-                                            "=",
-                                            "random_table_options.id"
-                                          )
-                                          .select(["id", "title"])
-                                      ).as("random_table_suboptions"),
-                                  ])
+                                  .select(["id", "title"])
                               ).as("random_table_options"),
                           ])
                       ).as("random_table"),
@@ -592,7 +578,7 @@ export function single_entity_router(app: Elysia) {
                             "=",
                             params.id
                           )
-                          .select(["related_id", "option_id", "suboption_id"])
+                          .select(["related_id", "option_id"])
                       ).as("random_table"),
                     (ebb) =>
                       jsonObjectFrom(

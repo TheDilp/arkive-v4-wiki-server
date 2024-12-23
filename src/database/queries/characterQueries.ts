@@ -217,7 +217,6 @@ export async function readCharacter(
                 "character_field_id as id",
                 "character_random_table_fields.related_id",
                 "option_id",
-                "suboption_id",
               ]);
 
             return jsonArrayFrom(random_table_query).as("field_random_tables");
@@ -676,17 +675,11 @@ export async function readCharacter(
       })
     ),
     ...(field_random_tables || []).map(
-      (d: {
-        id: string;
-        related_id: string;
-        option_id?: string;
-        suboption_id?: string;
-      }) => ({
+      (d: { id: string; related_id: string; option_id?: string }) => ({
         id: d.id,
         random_table: {
           related_id: d.related_id,
           option_id: d.option_id,
-          suboption_id: d.suboption_id,
         },
       })
     ),

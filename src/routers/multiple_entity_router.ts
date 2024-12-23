@@ -195,23 +195,7 @@ export function multiple_entity_router(app: Elysia) {
                                       "=",
                                       "random_table_options.parent_id"
                                     )
-                                    .select([
-                                      "id",
-                                      "title",
-                                      (ebbb) =>
-                                        jsonArrayFrom(
-                                          ebbb
-                                            .selectFrom(
-                                              "random_table_suboptions"
-                                            )
-                                            .whereRef(
-                                              "random_table_suboptions.parent_id",
-                                              "=",
-                                              "random_table_options.id"
-                                            )
-                                            .select(["id", "title"])
-                                        ).as("random_table_suboptions"),
-                                    ])
+                                    .select(["id", "title"])
                                 ).as("random_table_options"),
                             ])
                             .whereRef(
