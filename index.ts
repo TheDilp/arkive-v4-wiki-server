@@ -51,9 +51,6 @@ const app = new Elysia()
       role_access: false,
     };
   })
-  .use(single_entity_router)
-  .use(multiple_entity_router)
-  .use(search_router)
   .use(
     cors({
       origin:
@@ -63,6 +60,10 @@ const app = new Elysia()
       methods: ["GET", "POST"],
     })
   )
+  .use(single_entity_router)
+  .use(multiple_entity_router)
+  .use(search_router)
+
   .get("/health_check", async () => "Ok")
   .onStart(() => {
     console.info("WIKI CLIENT URL", process.env.WIKI_CLIENT_URL);
