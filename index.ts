@@ -57,7 +57,7 @@ const app = new Elysia()
         process.env.NODE_ENV === "development"
           ? true
           : [process.env.WIKI_CLIENT_URL as string],
-      methods: ["GET", "POST"],
+      methods: ["GET", "POST", "OPTIONS"],
     })
   )
   .use(single_entity_router)
