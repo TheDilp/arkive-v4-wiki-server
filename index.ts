@@ -53,24 +53,6 @@ const app = new Elysia()
   })
   .get("/health_check", async () => "Ok")
 
-  .use(
-    cors({
-      origin: (ctx) => {
-        console.log("Origin:", ctx);
-        return true;
-        // return process.env.NODE_ENV === "development"
-        // ? true
-        // : [process.env.WIKI_CLIENT_URL as string];
-      },
-      methods: ["GET", "POST", "OPTIONS"],
-      allowedHeaders: ["Access-Control-Allowed-Origin"],
-      exposeHeaders: [
-        "content-disposition",
-        "content-security-policy",
-        "content-security-policy-report-only",
-      ],
-    })
-  )
   .use(single_entity_router)
   .use(multiple_entity_router)
   .use(search_router)
