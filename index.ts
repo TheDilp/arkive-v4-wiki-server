@@ -51,12 +51,11 @@ const app = new Elysia()
       role_access: false,
     };
   })
+  .get("/health_check", async () => "Ok")
+
   .use(
     cors({
-      origin:
-        process.env.NODE_ENV === "development"
-          ? true
-          : [process.env.WIKI_CLIENT_URL as string],
+      origin: true,
       methods: ["GET", "POST", "OPTIONS"],
       allowedHeaders: ["Access-Control-Allowed-Origin"],
       exposeHeaders: [
@@ -70,7 +69,6 @@ const app = new Elysia()
   .use(multiple_entity_router)
   .use(search_router)
 
-  .get("/health_check", async () => "Ok")
   .onStart(() => {
     console.info("WIKI CLIENT URL", process.env.WIKI_CLIENT_URL);
     console.info(`Listening on port ${process.env.PORT} 🚀`);
